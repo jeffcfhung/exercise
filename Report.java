@@ -6,15 +6,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
 class Report {
-  public static TreeMap<Long, HashMap<String, Integer>> processUrlHits(String filename) {
+  private static Map<Long, Map<String, Integer>> processUrlHits(String filename) {
     // Use TreeMap for date time ordering
-    TreeMap<Long, HashMap<String, Integer>> result = new TreeMap<>();
+    Map<Long, Map<String, Integer>> result = new TreeMap<>();
     int errorCount = 0;
     Scanner in;
     
@@ -23,11 +25,11 @@ class Report {
       in = new Scanner(file);
     }
     catch (FileNotFoundException e) {
-      System.out.printf("File not found: %s%n", e);
+      System.out.printf("File not found: %s%n", e.getLocalizedMessage());
       return result;
     }
     
-    // Read file content line by line to prevent running out of memory
+    // Read line by line to prevent loading all file contents to memory at once
     while (in.hasNext()) {
       String line = in.nextLine();
       String[] tokens = line.split("\\|");
@@ -35,9 +37,9 @@ class Report {
         errorCount++;
         continue;
       }
-      // Round the time to beginning of date
+      // Round time to beginning of date
       Long roundedToDateTime = (Long.parseLong(tokens[0])/86400L)*86400L;
-      HashMap<String, Integer> urlMap;
+      Map<String, Integer> urlMap;
       if (result.containsKey(roundedToDateTime)) {
         urlMap = result.get(roundedToDateTime);
       }
@@ -59,23 +61,36 @@ class Report {
     return result;
   }
 
-  public static void generateReport(TreeMap<Long, HashMap<String, Integer>> allUrlHits) {
-      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-      for (Long date : allUrlHits.keySet()) {
-        LocalDateTime dateTime = LocalDateTime.ofEpochSecond(date, 0, ZoneOffset.UTC);
-        // Print date for report  
-        System.out.printf("%s GMT%n", dateTime.toLocalDate().format(formatter));
+  private static void sortAllUrlHits(Map<Long, Map<String, Integer>> allUrlHits) {
+    for (Long date : allUrlHits.keySet()) {
+      Map<String, Integer> dailyUrlHits = allUrlHits.get(date);
 
-        HashMap<String, Integer> dailyUrlHits = allUrlHits.get(date);
-        // Sort by value with descending order
-        List<Entry<String, Integer>> sortedList = new ArrayList<>(dailyUrlHits.entrySet());
-        sortedList.sort(Collections.reverseOrder(Entry.comparingByValue()));
-
-        // Print url and hit count for report
-        for (Entry<String, Integer> e: sortedList) {
-          System.out.printf("%s %d%n", e.getKey(), e.getValue());
-        }
+      List<Entry<String, Integer>> sortedList = new ArrayList<>(dailyUrlHits.entrySet());
+      // Sort by value with descending order
+      sortedList.sort(Collections.reverseOrder(Entry.comparingByValue()));
+      
+      // Use LinkedHashMap to keep the order of sorted array
+      Map<String, Integer> sortedDailyUrlHits = new LinkedHashMap<>();
+      for (Entry<String, Integer> e: sortedList) {
+        sortedDailyUrlHits.put(e.getKey(), e.getValue());
       }
+      allUrlHits.put(date, sortedDailyUrlHits);
+    }
+  }
+
+  private static void generateReport(Map<Long, Map<String, Integer>> allUrlHits) {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    for (Long date : allUrlHits.keySet()) {
+      LocalDateTime dateTime = LocalDateTime.ofEpochSecond(date, 0, ZoneOffset.UTC);
+      // Print date for report  
+      System.out.printf("%s GMT%n", dateTime.toLocalDate().format(formatter));
+
+      Map<String, Integer> dailyUrlHits = allUrlHits.get(date);
+      // Print URL hits for report
+      for (Entry<String, Integer> e: dailyUrlHits.entrySet()) {
+        System.out.printf("%s %d%n", e.getKey(), e.getValue());
+      }
+    }
   }
 
   // NOTE:
@@ -92,7 +107,8 @@ class Report {
       return;
     }
     // TODO: Add unit tests for postive and negative test cases
-    TreeMap<Long, HashMap<String, Integer>> allUrlHits = processUrlHits(args[0]);
+    Map<Long, Map<String, Integer>> allUrlHits = processUrlHits(args[0]);
+    sortAllUrlHits(allUrlHits);
     generateReport(allUrlHits);
   } 
 }
