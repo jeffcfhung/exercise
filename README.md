@@ -1,7 +1,7 @@
 # Exercise
 ## How to run this program
 ```
-./run.sh input.txt
+./run.sh
 ```
 ### Test output
 ```
