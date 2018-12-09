@@ -79,9 +79,12 @@ class Report {
   }
 
   // NOTE:
-  // Time complexity of sorting is m*log(m), m<=n, m is the maximum number of URLs to be sorted in one day
-  // Time complexity of TreeMap get and put functions is n*log(n). So the most signficant time complexity shall be n*log(n)
-  // Memory complexity is O(n) due to HashMap memory usage
+  // Time complexity analysis 
+  // Time complexity of Hashmap get/set is O(1)
+  // Time complexity of sorting url hit count is m*log(m), m<=n, m is the maximum number of URLs to be sorted in one day
+  // Time complexity of TreeMap get and put functions is n*log(p), n is total count of url hits, p is total days which is relatively small.
+  // Given n >> m > p, the time complexity of this program is O(n)
+  // Memory complexity is O(n) by HashMap memory usage
   
   public static void main(String[] args) {
     if (args.length < 1) {
