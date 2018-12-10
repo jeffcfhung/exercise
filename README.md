@@ -1,11 +1,11 @@
 # Exercise
-## How to run this program
+## How to generate report of URL hits
 ```
-./run.sh
+./generat_report.sh
 ```
 ### Test output
 ```
-./run.sh input.txt
+./generat_report.sh input.txt
 08/08/2014 GMT
 www.facebook.com 2
 www.google.com 2
