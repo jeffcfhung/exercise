@@ -1,11 +1,11 @@
 # Exercise
 ## How to generate report of URL hits
 ```
-./generat_report.sh
+./generate_report.sh
 ```
 ### Test output
 ```
-./generat_report.sh input.txt
+./generate_report.sh input.txt
 08/08/2014 GMT
 www.facebook.com 2
 www.google.com 2
