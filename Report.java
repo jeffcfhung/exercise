@@ -1,22 +1,19 @@
 import java.io.*;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
-import java.util.Scanner;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.Scanner;
 
 class Report {
-  private static Map<Long, Map<String, Integer>> processUrlHits(String filename) {
-    // Use TreeMap for date time ordering
-    Map<Long, Map<String, Integer>> result = new TreeMap<>();
+  private static Map<Long, Map<String, Long>> processUrlHits(String filename) {
+    Map<Long, Map<String, Long>> result = new HashMap<>();
     int errorCount = 0;
     Scanner in;
     
@@ -39,19 +36,19 @@ class Report {
       }
       // Round time to beginning of date
       Long roundedToDateTime = (Long.parseLong(tokens[0])/86400L)*86400L;
-      Map<String, Integer> urlMap;
+      Map<String, Long> urlMap;
       if (result.containsKey(roundedToDateTime)) {
         urlMap = result.get(roundedToDateTime);
       }
       else {
-        urlMap = new HashMap<String, Integer>();
+        urlMap = new HashMap<String, Long>();
         result.put(roundedToDateTime, urlMap);
       }
 
       // Increase hit count of URL
       String url = tokens[1];
-      int count = urlMap.getOrDefault(url, 0);
-      urlMap.put(url, count+1);
+      Long count = urlMap.getOrDefault(url, 0L);
+      urlMap.put(url, count + 1L);
     }
     in.close();
 
@@ -61,54 +58,126 @@ class Report {
     return result;
   }
 
-  private static void sortAllUrlHits(Map<Long, Map<String, Integer>> allUrlHits) {
-    for (Long date : allUrlHits.keySet()) {
-      Map<String, Integer> dailyUrlHits = allUrlHits.get(date);
-
-      List<Entry<String, Integer>> sortedList = new ArrayList<>(dailyUrlHits.entrySet());
-      // Sort by value with descending order
-      sortedList.sort(Collections.reverseOrder(Entry.comparingByValue()));
-      
-      // Use LinkedHashMap to keep the order of sorted array
-      Map<String, Integer> sortedDailyUrlHits = new LinkedHashMap<>();
-      for (Entry<String, Integer> e: sortedList) {
-        sortedDailyUrlHits.put(e.getKey(), e.getValue());
+  private static List<Entry<Long, List<Entry<Long, String>>>> radixSortAllUrlHits(
+    Map<Long, Map<String, Long>> allUrlHits
+  ) {
+    List<Entry<Long, Map<String, Long>>> allUrlHitList = new ArrayList<>(allUrlHits.entrySet());
+    List<Entry<Long, List<Entry<Long, String>>>> sortedAllUrlHitList = new ArrayList<>();
+    // Sort by date time
+    radixSort(allUrlHitList);
+    
+    for (Entry<Long, Map<String, Long>> allUrlHitEntry : allUrlHitList) {
+      Map<String, Long> dailyUrlHits = allUrlHitEntry.getValue();
+      List<Entry<Long, String>> dailyUrlHitList = new ArrayList<>();
+      for (Entry<String, Long> dailyUrlHitEntry: dailyUrlHits.entrySet()) {
+        // Swap the key/value so we can do radix sort with same interface
+        dailyUrlHitList.add(
+          new AbstractMap.SimpleEntry<Long, String>(
+            dailyUrlHitEntry.getValue(),
+            dailyUrlHitEntry.getKey()
+          )
+        );
       }
-      allUrlHits.put(date, sortedDailyUrlHits);
+      radixSort(dailyUrlHitList);
+
+      sortedAllUrlHitList.add(
+        new AbstractMap.SimpleEntry<Long, List<Entry<Long, String>>>(
+          allUrlHitEntry.getKey(),
+          dailyUrlHitList
+        )
+      );
+    }
+    return sortedAllUrlHitList;
+  }
+
+  private static <T> void radixSort(List<Entry<Long, T>> inputArray) {
+    final int RADIX = 10;
+
+    List<List<Entry<Long, T>>> buckets = new ArrayList<>();
+    for (int i=0; i<RADIX; i++) {
+      buckets.add(new ArrayList<Entry<Long, T>>());
+    }
+    
+    Long target, digitBase = 1L;
+    boolean isMaxDigitReached = false;
+    while (isMaxDigitReached == false) {
+      isMaxDigitReached = true;
+      for (Entry<Long, T> entry: inputArray) {
+        target = entry.getKey() / digitBase;
+        // Assign to corresponding bucket
+        buckets.get(Math.toIntExact(target%RADIX)).add(entry);
+        if (isMaxDigitReached == true && target > 0) {
+          isMaxDigitReached = false;
+        }
+      }
+
+      int i = 0;
+      for (int j=0; j<RADIX; j++) {
+        // Reassign back to inputArray and keep the partial sorted order
+        for (Entry<Long, T> entry: buckets.get(j)) {
+          inputArray.set(i++, entry);
+        }
+        buckets.get(j).clear();
+      }
+      // Advance to next digit
+      digitBase = digitBase * RADIX;
     }
   }
 
-  private static void generateReport(Map<Long, Map<String, Integer>> allUrlHits) {
+  private static void generateReport(
+    List<Entry<Long, List<Entry<Long, String>>>> allUrlHits
+  ) {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-    for (Long date : allUrlHits.keySet()) {
+    for (Entry<Long, List<Entry<Long, String>>> allUrlHitEntry: allUrlHits) {
+      Long date = allUrlHitEntry.getKey();
       LocalDateTime dateTime = LocalDateTime.ofEpochSecond(date, 0, ZoneOffset.UTC);
-      // Print date for report  
+      // Print date for report in ascending order by default
       System.out.printf("%s GMT%n", dateTime.toLocalDate().format(formatter));
 
-      Map<String, Integer> dailyUrlHits = allUrlHits.get(date);
-      // Print URL hits for report
-      for (Entry<String, Integer> e: dailyUrlHits.entrySet()) {
-        System.out.printf("%s %d%n", e.getKey(), e.getValue());
+      List<Entry<Long, String>> dailyUrlHits = allUrlHitEntry.getValue();
+      // Print URL hits for report in descending order 
+      ListIterator<Entry<Long, String>> li = dailyUrlHits.listIterator(dailyUrlHits.size());
+      while (li.hasPrevious()) {
+        Entry<Long, String> dailyUrlHitEntry = li.previous();
+        System.out.printf("%s %d%n", dailyUrlHitEntry.getValue(), dailyUrlHitEntry.getKey());
       }
     }
   }
 
-  // NOTE:
-  // Time complexity analysis 
-  // Time complexity of Hashmap get/set is O(1)
-  // Time complexity of sorting url hit count is m*log(m), m<=n, m is the maximum number of URLs to be sorted in one day
-  // Time complexity of TreeMap get and put functions is n*log(p), n is total count of url hits, p is total days which is relatively small.
-  // Given n >> m > p, the time complexity of this program is O(n)
-  // Memory complexity is O(n) by HashMap memory usage
-  
+  /**
+   * NOTE: Time complexity analysis
+   * 
+   * Solution 1: Comparison-based sort (previous version)
+   * Time complexity of Hashmap get/set is O(1)
+   * 
+   * Worst case scenario 1: n is the count of URL hits in one day with all different URLs
+   * Time complexity of sorting url hit count is O(n*log(n))
+   * Time complexity of sorting by date is O(m*log(m)), m = 1
+   * 
+   * Worst case scenario 2: n days and only one URL hit within one day
+   * Time complexity of sorting url hit count is O(m*log(m)), m = 1
+   * Time complexity of sorting by date is O(n*log(n))
+   * 
+   * Therefore the time complexity is O(n*log(n))
+   * 
+   * 12/12/2018
+   * Question from team: Is there a way for you to optimize the runtime of your solution?
+   * 
+   * Solution 2 (current): Radix sort (LSD: combinding counting sort and bucket sort)
+   * Time complexity of Radix sort is O(km). k is bucket size, and m is the unqiue URLs 
+   * As long as k<log(m), runtime of Radix might be better than comparision based sorting algorithm
+   * In fact, we can also dynamically change the k based on value of m to ensure k is always smaller than log(m)
+   * 
+   * Memory complexity is O(n) by HashMap memory usage
+   */
   public static void main(String[] args) {
     if (args.length < 1) {
       System.out.printf("Please specify the file name to proceed%n");
       return;
     }
     // TODO: Add unit tests for postive and negative test cases
-    Map<Long, Map<String, Integer>> allUrlHits = processUrlHits(args[0]);
-    sortAllUrlHits(allUrlHits);
-    generateReport(allUrlHits);
+    Map<Long, Map<String, Long>> allUrlHits = processUrlHits(args[0]);
+    List<Entry<Long, List<Entry<Long, String>>>> sortedAllUrlHits = radixSortAllUrlHits(allUrlHits);
+    generateReport(sortedAllUrlHits);
   } 
 }

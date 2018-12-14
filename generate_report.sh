@@ -1,4 +1,4 @@
 #!/bin/bash
 
-javac Report.java
+javac -Xlint:unchecked Report.java
 java Report $*
