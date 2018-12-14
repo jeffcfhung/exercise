@@ -154,11 +154,10 @@ class Report {
    * Time complexity of Radix sort is O(k(m+n)). k is maximum integer length,
    * n is date count, and m is maximum count of unqiue URLs in one day
    * 
-   * As long as k*(m+n)<(n*log(n)+m*log(m)), runtime complexity of Radix sort will be better than 
-   * comparision based sorting algorithm because best runtime is O(n*log(n))
+   * The overall runtime of Radix sort is O(kn) which is an improvement from O(nlog(n)) comparision sorting 
    * 
    * 
-   * Obsolete Solution: Comparison-based sort (previous version)
+   * Obsolete Solution: Comparison-based sorting
    * Time complexity of Hashmap get/set is O(1)
    * 
    * Worst case scenario 1: n is the count of unique URL hits in one day
