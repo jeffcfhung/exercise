@@ -147,26 +147,30 @@ class Report {
   /**
    * NOTE: Time complexity analysis
    * 
-   * Solution 1: Comparison-based sort (previous version)
-   * Time complexity of Hashmap get/set is O(1)
-   * 
-   * Worst case scenario 1: n is the count of URL hits in one day with all different URLs
-   * Time complexity of sorting url hit count is O(n*log(n))
-   * Time complexity of sorting by date is O(m*log(m)), m = 1
-   * 
-   * Worst case scenario 2: n days and only one URL hit within one day
-   * Time complexity of sorting url hit count is O(m*log(m)), m = 1
-   * Time complexity of sorting by date is O(n*log(n))
-   * 
-   * Therefore the time complexity is O(n*log(n))
-   * 
-   * 12/12/2018
+   *  * 12/12/2018
    * Question from team: Is there a way for you to optimize the runtime of your solution?
    * 
-   * Solution 2 (current): Radix sort (LSD: combinding counting sort and bucket sort)
-   * Time complexity of Radix sort is O(km). k is bucket size, and m is the unqiue URLs 
-   * As long as k<log(m), runtime of Radix might be better than comparision based sorting algorithm
-   * In fact, we can also dynamically change the k based on value of m to ensure k is always smaller than log(m)
+   * Improved Solution: Radix sort (LSD)
+   * Time complexity of Radix sort is O(k(m+n)). k is maximum integer length,
+   * n is date count, and m is maximum count of unqiue URLs in one day
+   * 
+   * As long as k*(m+n)<(n*log(n)+m*log(m)), runtime complexity of Radix sort will be better than 
+   * comparision based sorting algorithm because best runtime is O(n*log(n))
+   * 
+   * 
+   * Obsolete Solution: Comparison-based sort (previous version)
+   * Time complexity of Hashmap get/set is O(1)
+   * 
+   * Worst case scenario 1: n is the count of unique URL hits in one day
+   * Time complexity of sorting url hit count is O(n*log(n))
+   * 
+   * Worst case scenario 2: n days and only one URL hit within one day
+   * Time complexity of sorting by date is O(n*log(n))
+   * 
+   * Average case scenario: n days and m unique URL hit counts
+   * Time complexity is n*log(n) + m*log(m)
+   * 
+   * Therefore overall time complexity is O(n*log(n))
    * 
    * Memory complexity is O(n) by HashMap memory usage
    */
